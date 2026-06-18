@@ -1,0 +1,34 @@
+{
+  "name": "levithonlabs-ebilling-crm",
+  "version": "1.0.0",
+  "description": "Nepal-focused CRM + Billing + Invoice + Tax + eBilling Management Platform",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "apps/api",
+    "packages/database",
+    "packages/types",
+    "packages/nepal-ird-utils"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "db:generate": "npm run generate --workspace=packages/database",
+    "db:migrate": "npm run migrate --workspace=packages/database",
+    "db:seed": "npm run seed --workspace=packages/database",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "keywords": [
+    "saas",
+    "crm",
+    "ebilling",
+    "nepal",
+    "tax",
+    "invoice"
+  ],
+  "author": "LevithonLabs",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

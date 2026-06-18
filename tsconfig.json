@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "commonjs",
+    "lib": ["es2022", "dom"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "declaration": true,
+    "baseUrl": ".",
+    "paths": {
+      "@levithon/database": ["packages/database/index.ts"],
+      "@levithon/nepal-ird-utils": ["packages/nepal-ird-utils/src/index.ts"],
+      "@levithon/types": ["packages/types/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "dist"]
+}
