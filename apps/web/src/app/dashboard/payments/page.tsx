@@ -58,7 +58,21 @@ export default function PaymentsPage() {
         api.get('/sales/invoices'),
         api.get('/sales/payments')
       ]);
-      setInvoices(invs);
+      
+      const mappedInvs = invs.map((i: any) => {
+        const totalPaid = i.payments 
+          ? i.payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0) 
+          : 0;
+        return {
+          id: i.id,
+          invoiceNo: i.invoiceNo,
+          customer: i.customer || { name: 'Walk-in Customer' },
+          totalAmount: Number(i.totalAmount || 0),
+          paidAmount: Number(totalPaid || 0),
+          status: i.status
+        };
+      });
+      setInvoices(mappedInvs);
       
       const mappedPmts = pmts.map((p: any) => ({
         id: p.id,

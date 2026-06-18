@@ -351,7 +351,10 @@ export class SalesService {
   async getInvoices(tenantId: string) {
     return this.prisma.invoice.findMany({
       where: { tenantId, deletedAt: null },
-      include: { customer: true },
+      include: { 
+        customer: true,
+        payments: { where: { deletedAt: null } }
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
