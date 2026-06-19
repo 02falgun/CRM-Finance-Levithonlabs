@@ -38,6 +38,8 @@ export class AppModule implements NestModule {
       .apply(TenantMiddleware)
       .exclude(
         { path: 'auth/register', method: RequestMethod.POST },
+        { path: 'auth/forgot-password', method: RequestMethod.POST },
+        { path: 'auth/reset-password', method: RequestMethod.POST },
         { path: 'api/docs', method: RequestMethod.GET },
       )
       .forRoutes('*');

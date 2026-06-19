@@ -8,7 +8,7 @@ export async function request(path: string, options: RequestInit = {}) {
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
-  if (subdomain) {
+  if (subdomain && !headers.has('x-tenant-subdomain')) {
     headers.set('x-tenant-subdomain', subdomain);
   }
 
@@ -32,6 +32,17 @@ export async function request(path: string, options: RequestInit = {}) {
     } catch {
       errorMsg = res.statusText || errorMsg;
     }
+
+    if (res.status === 401 && typeof window !== 'undefined') {
+      const pathname = window.location.pathname;
+      if (pathname !== '/login' && pathname !== '/signup') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('tenant');
+        window.location.href = '/login';
+      }
+    }
+
     throw new Error(errorMsg);
   }
 

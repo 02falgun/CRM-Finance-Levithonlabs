@@ -1,8 +1,11 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { MailService } from '../integration/mail.service';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
@@ -10,6 +13,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
 
   async login(dto: LoginDto, currentTenantId: string) {
@@ -188,5 +192,83 @@ export class AuthService {
         subdomain: result.tenant.subdomain,
       },
     };
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email, deletedAt: null },
+      include: { tenant: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('No account found with this email address');
+    }
+
+    // Generate a short-lived token (15 mins) for password reset
+    const token = await this.jwtService.signAsync(
+      { userId: user.id, type: 'reset' },
+      { expiresIn: '15m' }
+    );
+
+    // Trigger email notification via integration MailService
+    await this.mailService.sendPasswordResetEmail(user.email, token);
+
+    // Save notification log in DB
+    await this.prisma.notification.create({
+      data: {
+        tenantId: user.tenantId,
+        type: 'EMAIL',
+        recipient: user.email,
+        message: `Password reset request. Link: http://localhost:3002/reset-password?token=${token}`,
+        status: 'SENT',
+      },
+    });
+
+    return { message: 'Password reset link has been dispatched to your email' };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    let payload: any;
+    try {
+      payload = await this.jwtService.verifyAsync(dto.token);
+      if (payload.type !== 'reset') {
+        throw new Error('Invalid token type');
+      }
+    } catch (error) {
+      throw new BadRequestException('The reset link is invalid or has expired');
+    }
+
+    const userId = payload.userId;
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User account not found');
+    }
+
+    // Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(dto.password, salt);
+
+    // Update password in DB
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    // Save audit log
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId: user.tenantId,
+        userId: user.id,
+        action: 'USER_PASSWORD_RESET',
+        entityName: 'User',
+        entityId: user.id,
+        newValue: { message: 'Password reset successfully completed' },
+      },
+    });
+
+    return { message: 'Password has been updated successfully' };
   }
 }
