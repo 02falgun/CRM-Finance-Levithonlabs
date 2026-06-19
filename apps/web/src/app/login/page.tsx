@@ -69,8 +69,8 @@ export default function LoginPage() {
 
         <div className="space-y-6">
           <div className="text-center space-y-2">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E86D1F]/15 border border-[#E86D1F]/30 text-[#E86D1F] mb-2">
-              <ShieldCheck className="h-6 w-6" />
+            <div className="flex justify-center mb-2">
+              <img src="/logowhite.png" alt="Levithon Labs Logo" className="h-12 object-contain" />
             </div>
             <h1 className="text-2xl font-black text-white font-outfit uppercase tracking-tight">
               Levithon<span className="text-[#E86D1F]">Labs</span> eBilling

@@ -169,9 +169,7 @@ export default function DashboardLayout({
       >
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200/80">
           <div className="flex items-center gap-2 overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-[#111111] flex items-center justify-center shrink-0">
-              <span className="text-white font-extrabold text-sm tracking-widest">L</span>
-            </div>
+            <img src="/logopng.png" alt="Levithon Labs Logo" className="h-8 object-contain shrink-0" />
             {sidebarOpen && (
               <span className="font-extrabold text-sm tracking-tight text-[#111111] whitespace-nowrap animate-in fade-in duration-200">
                 Levithon<span className="text-[#E86D1F]">Labs</span>
@@ -228,9 +226,7 @@ export default function DashboardLayout({
           <aside className="w-64 bg-white h-full flex flex-col border-r border-slate-200/80 animate-in slide-in-from-left duration-250">
             <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200/80">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#111111] flex items-center justify-center">
-                  <span className="text-white font-extrabold text-sm">L</span>
-                </div>
+                <img src="/logopng.png" alt="Levithon Labs Logo" className="h-8 object-contain shrink-0" />
                 <span className="font-extrabold text-sm text-[#111111]">
                   Levithon<span className="text-[#E86D1F]">Labs</span>
                 </span>
