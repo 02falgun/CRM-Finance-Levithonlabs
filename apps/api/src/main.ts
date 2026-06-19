@@ -16,17 +16,43 @@ async function bootstrap() {
   );
 
   // Enable CORS
-  const corsOrigins = process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(',')
-    : [
+  app.enableCors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, postman)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      const defaultOrigins = [
         'http://localhost:3000',
         'http://localhost:3001',
         'http://localhost:3002',
+        'https://crm-finance-levithonlabs-web.vercel.app',
         process.env.FRONTEND_URL || 'https://crm.levithonlabs.com',
       ];
 
-  app.enableCors({
-    origin: corsOrigins,
+      const corsOrigins = process.env.CORS_ORIGINS
+        ? [...process.env.CORS_ORIGINS.split(','), ...defaultOrigins]
+        : defaultOrigins;
+
+      const isAllowed = corsOrigins.some((allowed) => {
+        if (allowed === origin) return true;
+        if (allowed.includes('*')) {
+          const regex = new RegExp('^' + allowed.replace(/\*/g, '.*') + '$');
+          return regex.test(origin);
+        }
+        return false;
+      });
+
+      // Also dynamically allow any Vercel deployments related to crm-finance-levithonlabs
+      const isVercelPreview = origin.startsWith('https://crm-finance-levithonlabs') && origin.endsWith('.vercel.app');
+
+      if (isAllowed || isVercelPreview) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
