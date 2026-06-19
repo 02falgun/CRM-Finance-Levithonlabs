@@ -16,8 +16,17 @@ async function bootstrap() {
   );
 
   // Enable CORS
+  const corsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',')
+    : [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:3002',
+        process.env.FRONTEND_URL || 'https://crm.levithonlabs.com',
+      ];
+
   app.enableCors({
-    origin: '*', // In production, replace with specific origins
+    origin: corsOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });

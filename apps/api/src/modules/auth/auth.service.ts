@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -14,6 +15,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
+    private readonly config: ConfigService,
   ) {}
 
   async login(dto: LoginDto, currentTenantId: string) {
@@ -210,6 +212,10 @@ export class AuthService {
       { expiresIn: '15m' }
     );
 
+    // Resolve frontend domain dynamically
+    const frontendUrl = this.config.get<string>('FRONTEND_URL') || 'https://crm.levithonlabs.com';
+    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+
     // Trigger email notification via integration MailService
     await this.mailService.sendPasswordResetEmail(user.email, token);
 
@@ -219,7 +225,7 @@ export class AuthService {
         tenantId: user.tenantId,
         type: 'EMAIL',
         recipient: user.email,
-        message: `Password reset request. Link: http://localhost:3002/reset-password?token=${token}`,
+        message: `Password reset request. Link: ${resetLink}`,
         status: 'SENT',
       },
     });

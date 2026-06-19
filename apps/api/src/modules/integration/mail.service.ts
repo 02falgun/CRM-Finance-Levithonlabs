@@ -203,7 +203,8 @@ export class MailService {
    */
   async sendPasswordResetEmail(recipient: string, token: string): Promise<void> {
     const subject = 'Reset Your LevithonLabs Account Password';
-    const resetUrl = `https://crm.levithonlabs.com/auth/reset-password?token=${token}`;
+    const frontendUrl = this.config.get<string>('FRONTEND_URL') || 'https://crm.levithonlabs.com';
+    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
     const text = `You have requested to reset your password. Click the link to reset: ${resetUrl}\n\nIf you did not request this, please ignore this email.`;
 
     const html = `
