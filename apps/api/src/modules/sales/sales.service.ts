@@ -8,10 +8,19 @@ import {
   CreateTaxDto 
 } from './dto/sales.dto';
 import { getFiscalYear, convertADToBS, generateIrdVerificationHash } from '@levithon/nepal-ird-utils';
+import { CacheService } from '../cache/cache.service';
+import { CacheKeys } from '../cache/cache-keys';
 
 @Injectable()
 export class SalesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
+
+  private async invalidateDashboard(tenantId: string) {
+    await this.cache.del(CacheKeys.dashboard(tenantId));
+  }
 
   // --- TAX CONFIG ACTIONS ---
 
@@ -220,6 +229,7 @@ export class SalesService {
       return invoice;
     });
 
+    await this.invalidateDashboard(tenantId);
     return result;
   }
 
@@ -322,7 +332,7 @@ export class SalesService {
     const dateAD = new Date();
     const dateBS = convertADToBS(dateAD);
 
-    return this.prisma.invoice.create({
+    const created = await this.prisma.invoice.create({
       data: {
         tenantId,
         customerId: customer.id,
@@ -346,6 +356,8 @@ export class SalesService {
         customer: true,
       },
     });
+    await this.invalidateDashboard(tenantId);
+    return created;
   }
 
   async getInvoices(tenantId: string) {
@@ -408,6 +420,8 @@ export class SalesService {
     // Simulate IRD CBMS Sync trigger (registers log under Ebill table)
     await this.syncEbillWithIrd(invoice, profile?.panNumber || '987654321', verificationHash);
 
+    await this.invalidateDashboard(tenantId);
+
     return {
       invoice: updatedInvoice,
       verificationHash,
@@ -456,6 +470,7 @@ export class SalesService {
       return creditNote;
     });
 
+    await this.invalidateDashboard(tenantId);
     return result;
   }
 
@@ -507,6 +522,7 @@ export class SalesService {
       data: { status: nextStatus },
     });
 
+    await this.invalidateDashboard(tenantId);
     return payment;
   }
 

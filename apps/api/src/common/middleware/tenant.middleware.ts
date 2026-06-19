@@ -1,6 +1,15 @@
 import { Injectable, NestMiddleware, NotFoundException } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { PrismaService } from '../../modules/prisma/prisma.service';
+import { CacheService } from '../../modules/cache/cache.service';
+import { CacheKeys, CacheTTL } from '../../modules/cache/cache-keys';
+
+interface CachedTenant {
+  id: string;
+  subdomain: string;
+  isActive: boolean;
+  companyProfile: { name: string; panNumber: string | null } | null;
+}
 
 declare global {
   namespace Express {
@@ -17,7 +26,10 @@ declare global {
 
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   async use(req: Request, res: Response, next: NextFunction) {
     // 1. Resolve tenant subdomain from custom header or host domain
@@ -37,21 +49,26 @@ export class TenantMiddleware implements NestMiddleware {
       subdomain = 'demo';
     }
 
-    // 2. Fetch tenant from database
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { subdomain },
-      select: {
-        id: true,
-        subdomain: true,
-        isActive: true,
-        companyProfile: {
+    // 2. Resolve tenant (cache-aside: avoids a DB round-trip on every request)
+    const tenant = await this.cache.wrap<CachedTenant | null>(
+      CacheKeys.tenant(subdomain),
+      CacheTTL.tenant,
+      () =>
+        this.prisma.tenant.findUnique({
+          where: { subdomain },
           select: {
-            name: true,
-            panNumber: true,
+            id: true,
+            subdomain: true,
+            isActive: true,
+            companyProfile: {
+              select: {
+                name: true,
+                panNumber: true,
+              },
+            },
           },
-        },
-      },
-    });
+        }),
+    );
 
     if (!tenant) {
       throw new NotFoundException(`Tenant with subdomain '${subdomain}' not found.`);

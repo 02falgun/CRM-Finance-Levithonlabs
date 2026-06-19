@@ -1,16 +1,10 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+// All client data calls go through the same-origin Next.js BFF proxy.
+// The proxy injects the httpOnly JWT cookie as a Bearer token + tenant header,
+// so no token is ever exposed to client JS.
+const API_BASE = '/api/proxy';
 
 export async function request(path: string, options: RequestInit = {}) {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  const subdomain = typeof window !== 'undefined' ? localStorage.getItem('subdomain') : null;
-
   const headers = new Headers(options.headers || {});
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-  if (subdomain && !headers.has('x-tenant-subdomain')) {
-    headers.set('x-tenant-subdomain', subdomain);
-  }
 
   if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
@@ -36,9 +30,6 @@ export async function request(path: string, options: RequestInit = {}) {
     if (res.status === 401 && typeof window !== 'undefined') {
       const pathname = window.location.pathname;
       if (pathname !== '/login' && pathname !== '/signup') {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('tenant');
         window.location.href = '/login';
       }
     }

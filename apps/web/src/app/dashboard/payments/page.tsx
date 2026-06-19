@@ -11,6 +11,7 @@ import {
   Download
 } from 'lucide-react';
 import { api } from '../../../lib/api';
+import { refreshDashboard } from '../actions';
 
 interface Payment {
   id: string;
@@ -154,8 +155,9 @@ export default function PaymentsPage() {
       setAmount('');
       setRefNo('');
       
-      // Refresh list
+      // Refresh list + invalidate cached dashboard stats
       await fetchData();
+      await refreshDashboard();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to submit payment allocation');
     } finally {

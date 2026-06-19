@@ -11,6 +11,7 @@ import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { TenantModule } from './modules/tenant/tenant.module';
 import { UtilityModule } from './modules/utility/utility.module';
 import { IntegrationModule } from './modules/integration/integration.module';
+import { CacheModule } from './modules/cache/cache.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { IntegrationModule } from './modules/integration/integration.module';
       isGlobal: true,
       envFilePath: ['.env', '../../.env'],
     }),
+    CacheModule,
     PrismaModule,
     AuthModule,
     CrmModule,

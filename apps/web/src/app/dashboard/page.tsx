@@ -1,15 +1,8 @@
-'use client';
-
-import React, { useState, useEffect } from 'react';
-import { 
-  TrendingUp, 
-  Users, 
-  Receipt, 
-  ShieldCheck, 
-  Clock, 
-  ArrowUpRight 
-} from 'lucide-react';
-import { api } from '../../lib/api';
+import { Suspense } from 'react';
+import { TrendingUp, Users, Receipt, ShieldCheck, Clock } from 'lucide-react';
+import { serverFetch } from '../../lib/server/server-api';
+import { getServerSession } from '../../lib/server/session';
+import { StatCardsSkeleton, TableSkeleton } from '../../components/skeletons';
 
 interface Transaction {
   id: string;
@@ -34,46 +27,56 @@ interface DashboardStats {
   chartData: ChartPoint[];
 }
 
+export const dynamic = 'force-dynamic';
+
 export default function AnalyticsPage() {
-  const [data, setData] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    async function fetchDashboard() {
-      try {
-        const res = await api.get('/utility/dashboard');
-        setData(res);
-      } catch (err: any) {
-        setError(err.message || 'Failed to fetch dashboard metrics');
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchDashboard();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="text-center space-y-2">
-          <div className="w-8 h-8 border-4 border-t-[#E86D1F] border-r-transparent border-slate-300 rounded-full animate-spin mx-auto" />
-          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Aggregating Ledger Stats...</p>
-        </div>
+  return (
+    <div className="space-y-8 font-sans">
+      <div>
+        <h1 className="text-xl font-black tracking-tight text-[#111111] font-outfit uppercase">
+          Billing &amp; CRM Analytics
+        </h1>
+        <p className="text-xs text-slate-500 mt-1">Real-time sales, crm leads, and IRD sync monitoring</p>
       </div>
-    );
-  }
 
-  if (error || !data) {
+      <Suspense
+        fallback={
+          <div className="space-y-8">
+            <StatCardsSkeleton />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2">
+                <TableSkeleton rows={4} />
+              </div>
+              <TableSkeleton rows={5} />
+            </div>
+          </div>
+        }
+      >
+        <StatsSection />
+      </Suspense>
+    </div>
+  );
+}
+
+async function StatsSection() {
+  const session = await getServerSession();
+  const tenantId = session?.tenant.id ?? 'unknown';
+
+  let data: DashboardStats;
+  try {
+    data = await serverFetch<DashboardStats>('/utility/dashboard', {
+      revalidate: 20,
+      tags: [`dashboard:${tenantId}`],
+    });
+  } catch (err: any) {
     return (
       <div className="p-6 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-xs">
-        {error || 'Could not load stats data. Check backend connectivity.'}
+        {err?.message || 'Could not load stats data. Check backend connectivity.'}
       </div>
     );
   }
 
-  // Calculate dynamic SVG coordinates for the last 7 days chart
-  const maxAmount = Math.max(...data.chartData.map(d => d.amount), 1);
+  const maxAmount = Math.max(...data.chartData.map((d) => d.amount), 1);
   const points = data.chartData.map((d, i) => {
     const x = i * 100;
     const y = 180 - (d.amount / maxAmount) * 150;
@@ -91,16 +94,7 @@ export default function AnalyticsPage() {
   ];
 
   return (
-    <div className="space-y-8 font-sans">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-xl font-black tracking-tight text-[#111111] font-outfit uppercase">
-          Billing & CRM Analytics
-        </h1>
-        <p className="text-xs text-slate-500 mt-1">Real-time sales, crm leads, and IRD sync monitoring</p>
-      </div>
-
-      {/* Grid Stats */}
+    <>
       <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {stats.map((s) => (
           <div key={s.name} className="premium-card p-6 rounded-2xl bg-white space-y-4">
@@ -121,9 +115,7 @@ export default function AnalyticsPage() {
         ))}
       </section>
 
-      {/* Charts & Transaction Panels */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Sales Performance Chart (Dynamic SVG Sparkline) */}
         <div className="lg:col-span-2 premium-card p-6 rounded-2xl bg-white space-y-6">
           <div className="flex justify-between items-center">
             <div>
@@ -148,27 +140,10 @@ export default function AnalyticsPage() {
                   <stop offset="100%" stopColor="#E86D1F" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
-              <path 
-                d={areaPath} 
-                fill="url(#chartGradient)"
-              />
-              <path 
-                d={strokePath} 
-                fill="none" 
-                stroke="#E86D1F" 
-                strokeWidth="3.5"
-                strokeLinecap="round"
-              />
+              <path d={areaPath} fill="url(#chartGradient)" />
+              <path d={strokePath} fill="none" stroke="#E86D1F" strokeWidth="3.5" strokeLinecap="round" />
               {points.map((p, idx) => (
-                <circle 
-                  key={idx} 
-                  cx={p.x} 
-                  cy={p.y} 
-                  r="4.5" 
-                  fill="#111111" 
-                  stroke="#E86D1F" 
-                  strokeWidth="2.5" 
-                />
+                <circle key={idx} cx={p.x} cy={p.y} r="4.5" fill="#111111" stroke="#E86D1F" strokeWidth="2.5" />
               ))}
             </svg>
           </div>
@@ -180,7 +155,6 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* Recent CBMS Transmissions */}
         <div className="premium-card p-6 rounded-2xl bg-white space-y-6">
           <div className="flex justify-between items-center border-b border-slate-100 pb-4">
             <h2 className="text-sm font-bold text-[#111111] uppercase tracking-wider">E-Billing Portal</h2>
@@ -201,13 +175,15 @@ export default function AnalyticsPage() {
                   </div>
                   <div className="text-right space-y-1">
                     <div className="font-bold text-[#111111]">Rs. {tx.amount.toLocaleString()}</div>
-                    <span className={`inline-block text-[9px] font-extrabold px-1.5 py-0.5 rounded ${
-                      tx.status === 'SUCCESS' || tx.status === 'ACCEPTED'
-                        ? 'bg-emerald-50 text-emerald-600' 
-                        : tx.status === 'PENDING'
-                        ? 'bg-amber-50 text-amber-600'
-                        : 'bg-rose-50 text-rose-600'
-                    }`}>
+                    <span
+                      className={`inline-block text-[9px] font-extrabold px-1.5 py-0.5 rounded ${
+                        tx.status === 'SUCCESS' || tx.status === 'ACCEPTED'
+                          ? 'bg-emerald-50 text-emerald-600'
+                          : tx.status === 'PENDING'
+                          ? 'bg-amber-50 text-amber-600'
+                          : 'bg-rose-50 text-rose-600'
+                      }`}
+                    >
                       {tx.status}
                     </span>
                   </div>
@@ -217,6 +193,6 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

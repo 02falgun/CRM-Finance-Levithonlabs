@@ -1,9 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../cache/cache.service';
+import { CacheKeys, CacheTTL } from '../cache/cache-keys';
 
 @Injectable()
 export class UtilityService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   // --- AUDIT LOGS ---
 
@@ -63,68 +68,67 @@ export class UtilityService {
   }
 
   async getDashboardStats(tenantId: string) {
-    // 1. Total Revenue (total amount of non-cancelled, non-draft invoices)
-    const revenueSum = await this.prisma.invoice.aggregate({
-      where: {
-        tenantId,
-        deletedAt: null,
-        NOT: {
-          status: { in: ['DRAFT', 'CANCELLED'] }
-        }
-      },
-      _sum: {
-        totalAmount: true
-      }
-    });
+    return this.cache.wrap(
+      CacheKeys.dashboard(tenantId),
+      CacheTTL.dashboard,
+      () => this.computeDashboardStats(tenantId),
+    );
+  }
+
+  private async computeDashboardStats(tenantId: string) {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    // All six reads are independent - run them in a single parallel batch
+    // instead of sequential awaits to collapse round-trip latency.
+    const [
+      revenueSum,
+      activeCustomers,
+      invoicesIssued,
+      totalEbills,
+      successEbills,
+      recentInvoices,
+      weeklyInvoices,
+    ] = await Promise.all([
+      this.prisma.invoice.aggregate({
+        where: {
+          tenantId,
+          deletedAt: null,
+          NOT: { status: { in: ['DRAFT', 'CANCELLED'] } },
+        },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.customer.count({
+        where: { tenantId, isActive: true, deletedAt: null },
+      }),
+      this.prisma.invoice.count({
+        where: { tenantId, deletedAt: null, NOT: { status: 'DRAFT' } },
+      }),
+      this.prisma.ebill.count({
+        where: { invoice: { tenantId }, deletedAt: null },
+      }),
+      this.prisma.ebill.count({
+        where: { invoice: { tenantId }, syncStatus: 'SUCCESS', deletedAt: null },
+      }),
+      this.prisma.invoice.findMany({
+        where: { tenantId, deletedAt: null },
+        include: { customer: true, ebills: true },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
+      this.prisma.invoice.findMany({
+        where: {
+          tenantId,
+          createdAt: { gte: weekAgo },
+          deletedAt: null,
+          NOT: { status: { in: ['DRAFT', 'CANCELLED'] } },
+        },
+        select: { totalAmount: true, createdAt: true },
+      }),
+    ]);
+
     const totalRevenue = Number(revenueSum._sum.totalAmount || 0);
-
-    // 2. Active Customers Count
-    const activeCustomers = await this.prisma.customer.count({
-      where: {
-        tenantId,
-        isActive: true,
-        deletedAt: null
-      }
-    });
-
-    // 3. Invoices Issued Count (non-draft invoices)
-    const invoicesIssued = await this.prisma.invoice.count({
-      where: {
-        tenantId,
-        deletedAt: null,
-        NOT: { status: 'DRAFT' }
-      }
-    });
-
-    // 4. IRD Compliance Sync Success rate
-    const totalEbills = await this.prisma.ebill.count({
-      where: {
-        invoice: { tenantId },
-        deletedAt: null
-      }
-    });
-    const successEbills = await this.prisma.ebill.count({
-      where: {
-        invoice: { tenantId },
-        syncStatus: 'SUCCESS',
-        deletedAt: null
-      }
-    });
     const syncRate = totalEbills > 0 ? Math.round((successEbills / totalEbills) * 100) : 100;
-
-    // 5. Recent Transactions
-    const recentInvoices = await this.prisma.invoice.findMany({
-      where: {
-        tenantId,
-        deletedAt: null
-      },
-      include: {
-        customer: true,
-        ebills: true
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 5
-    });
 
     const recentTransactions = recentInvoices.map(inv => {
       const ebill = inv.ebills?.[0];
@@ -138,24 +142,7 @@ export class UtilityService {
       };
     });
 
-    // 6. Revenue Stream for last 7 days
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    const weeklyInvoices = await this.prisma.invoice.findMany({
-      where: {
-        tenantId,
-        createdAt: { gte: weekAgo },
-        deletedAt: null,
-        NOT: {
-          status: { in: ['DRAFT', 'CANCELLED'] }
-        }
-      },
-      select: {
-        totalAmount: true,
-        createdAt: true
-      }
-    });
-
+    // Revenue Stream for last 7 days (weeklyInvoices fetched in the batch above)
     const dailySums: Record<string, number> = {};
     for (let i = 6; i >= 0; i--) {
       const d = new Date();

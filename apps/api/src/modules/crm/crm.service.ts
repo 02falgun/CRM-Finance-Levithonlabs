@@ -10,10 +10,15 @@ import {
   UpdateLeadStatusDto 
 } from './dto/crm.dto';
 import { validatePan } from '@levithon/nepal-ird-utils';
+import { CacheService } from '../cache/cache.service';
+import { CacheKeys } from '../cache/cache-keys';
 
 @Injectable()
 export class CrmService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   // --- CUSTOMER ACTIONS ---
 
@@ -22,13 +27,15 @@ export class CrmService {
       throw new BadRequestException('Nepal PAN must be exactly 9 numeric digits');
     }
 
-    return this.prisma.customer.create({
+    const customer = await this.prisma.customer.create({
       data: {
         ...dto,
         tenantId,
         isActive: true,
       },
     });
+    await this.cache.del(CacheKeys.dashboard(tenantId));
+    return customer;
   }
 
   async updateCustomer(id: string, dto: UpdateCustomerDto, tenantId: string) {
@@ -46,10 +53,12 @@ export class CrmService {
 
   async deactivateCustomer(id: string, dto: DeactivateCustomerDto, tenantId: string) {
     await this.getCustomerById(id, tenantId); // verify exists
-    return this.prisma.customer.update({
+    const updated = await this.prisma.customer.update({
       where: { id },
       data: { isActive: dto.isActive },
     });
+    await this.cache.del(CacheKeys.dashboard(tenantId));
+    return updated;
   }
 
   async searchCustomers(query: string, tenantId: string) {

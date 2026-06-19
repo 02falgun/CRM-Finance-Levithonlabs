@@ -1,12 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldCheck, Mail, Lock, Building, AlertCircle } from 'lucide-react';
-import { api } from '../../lib/api';
-import { saveSession, isAuthenticated } from '../../lib/auth';
-
 export default function LoginPage() {
   const router = useRouter();
   const [subdomain, setSubdomain] = useState('demo');
@@ -14,12 +11,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (isAuthenticated()) {
-      router.push('/dashboard');
-    }
-  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,23 +23,19 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const res = await api.post(
-        '/auth/login',
-        { email, password },
-        {
-          headers: {
-            'x-tenant-subdomain': subdomain,
-          },
-        }
-      );
-
-      saveSession({
-        token: res.accessToken,
-        user: res.user,
-        tenant: res.tenant,
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, subdomain }),
       });
 
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Authentication failed. Please verify credentials.');
+      }
+
       router.push('/dashboard');
+      router.refresh();
     } catch (err: any) {
       setError(err.message || 'Authentication failed. Please verify credentials.');
     } finally {

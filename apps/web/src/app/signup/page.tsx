@@ -1,12 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldCheck, Mail, Lock, Building, User, FileText, AlertCircle } from 'lucide-react';
-import { api } from '../../lib/api';
-import { saveSession, isAuthenticated } from '../../lib/auth';
-
 export default function SignupPage() {
   const router = useRouter();
   const [subdomain, setSubdomain] = useState('');
@@ -19,12 +16,6 @@ export default function SignupPage() {
   
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (isAuthenticated()) {
-      router.push('/dashboard');
-    }
-  }, [router]);
 
   const handlePanChange = (val: string) => {
     setPanNumber(val);
@@ -50,22 +41,26 @@ export default function SignupPage() {
     setError('');
 
     try {
-      const res = await api.post('/auth/register', {
-        subdomain: subdomain.trim().toLowerCase(),
-        tenantName,
-        name,
-        email,
-        password,
-        panNumber: panNumber || undefined,
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subdomain: subdomain.trim().toLowerCase(),
+          tenantName,
+          name,
+          email,
+          password,
+          panNumber: panNumber || undefined,
+        }),
       });
 
-      saveSession({
-        token: res.accessToken,
-        user: res.user,
-        tenant: res.tenant,
-      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Registration failed. Please check inputs.');
+      }
 
       router.push('/dashboard');
+      router.refresh();
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please check inputs.');
     } finally {

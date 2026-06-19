@@ -12,52 +12,42 @@ export interface TenantContext {
 }
 
 export interface SessionData {
-  token: string;
   user: UserSession;
   tenant: TenantContext;
 }
 
-export function saveSession(data: SessionData) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem('token', data.token);
-  localStorage.setItem('subdomain', data.tenant.subdomain);
-  localStorage.setItem('user', JSON.stringify(data.user));
-  localStorage.setItem('tenant', JSON.stringify(data.tenant));
-}
-
-export function clearSession() {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem('token');
-  localStorage.removeItem('subdomain');
-  localStorage.removeItem('user');
-  localStorage.removeItem('tenant');
+function readSessionCookie(): SessionData | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie
+    .split('; ')
+    .find((row) => row.startsWith('session='));
+  if (!match) return null;
+  try {
+    const raw = decodeURIComponent(match.split('=').slice(1).join('='));
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 export function getSessionUser(): UserSession | null {
-  if (typeof window === 'undefined') return null;
-  const user = localStorage.getItem('user');
-  if (!user) return null;
-  try {
-    return JSON.parse(user);
-  } catch {
-    return null;
-  }
+  return readSessionCookie()?.user ?? null;
 }
 
 export function getSessionTenant(): TenantContext | null {
-  if (typeof window === 'undefined') return null;
-  const tenant = localStorage.getItem('tenant');
-  if (!tenant) return null;
-  try {
-    return JSON.parse(tenant);
-  } catch {
-    return null;
-  }
+  return readSessionCookie()?.tenant ?? null;
 }
 
-export function getSessionToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('token');
+export function isAuthenticated(): boolean {
+  return !!readSessionCookie();
+}
+
+export async function clearSession() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } catch {
+    // ignore network errors on logout
+  }
 }
 
 export function hasPermission(permission: string): boolean {
@@ -71,8 +61,4 @@ export function hasRole(role: string): boolean {
   const user = getSessionUser();
   if (!user) return false;
   return user.roles.includes(role);
-}
-
-export function isAuthenticated(): boolean {
-  return !!getSessionToken() && !!getSessionUser();
 }

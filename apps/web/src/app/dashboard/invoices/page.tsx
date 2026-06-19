@@ -20,6 +20,7 @@ import {
   Mail
 } from 'lucide-react';
 import { api } from '../../../lib/api';
+import { refreshDashboard } from '../actions';
 
 interface LineItem {
   desc: string;
@@ -135,6 +136,7 @@ export default function InvoicesPage() {
       setItems([{ desc: 'ERP System Setup & Implementation SLA', qty: 1, price: 50000, taxId: '', discount: 0 }]);
       setActiveTab('list');
       fetchInvoices();
+      await refreshDashboard();
       alert('Draft Invoice generated successfully!');
     } catch (err: any) {
       alert('Failed to create invoice: ' + err.message);
@@ -145,6 +147,7 @@ export default function InvoicesPage() {
     try {
       const res = await api.post(`/sales/invoices/${invoiceId}/print`);
       fetchInvoices();
+      await refreshDashboard();
       alert(`Invoice successfully locked and synchronized to Nepal IRD portal!\nVerification Hash: ${res.verificationHash}`);
     } catch (err: any) {
       alert('Failed to print and lock invoice: ' + err.message);
@@ -161,6 +164,7 @@ export default function InvoicesPage() {
     try {
       await api.post(`/sales/invoices/${invoiceId}/credit-notes`, { reason });
       fetchInvoices();
+      await refreshDashboard();
       alert(`Credit Note successfully issued.\nStatus set to CANCELLED.`);
     } catch (err: any) {
       alert('Failed to void invoice: ' + err.message);

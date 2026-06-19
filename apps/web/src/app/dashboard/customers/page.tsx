@@ -17,6 +17,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { api } from '../../../lib/api';
+import { refreshDashboard } from '../actions';
 
 interface Contact {
   id?: string;
@@ -105,6 +106,7 @@ export default function CustomersPage() {
       setCustPan('');
       setActivePanel(null);
       fetchCustomers();
+      await refreshDashboard();
       alert(`Customer profile for ${custName} registered successfully.`);
     } catch (err: any) {
       alert('Failed to create customer: ' + err.message);

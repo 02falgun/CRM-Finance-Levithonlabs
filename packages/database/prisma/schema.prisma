@@ -146,6 +146,7 @@ model Customer {
   invoices   Invoice[]
 
   @@index([tenantId])
+  @@index([tenantId, isActive])
 }
 
 model CustomerContact {
@@ -266,6 +267,8 @@ model Invoice {
 
   @@index([tenantId])
   @@index([customerId])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
 }
 
 model InvoiceItem {
