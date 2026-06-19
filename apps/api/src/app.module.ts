@@ -16,6 +16,7 @@ import { IntegrationModule } from './modules/integration/integration.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: ['.env', '../../.env'],
     }),
     PrismaModule,
     AuthModule,

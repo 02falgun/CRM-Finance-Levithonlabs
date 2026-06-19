@@ -15,9 +15,7 @@ export class AuthGuard implements CanActivate {
     }
 
     try {
-      const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET || 'supersecretkey123',
-      });
+      const payload = await this.jwtService.verifyAsync(token);
 
       // Verify tenant matching
       if (request.tenant && payload.tenantId !== request.tenant.id && payload.role !== 'SUPER_ADMIN') {
