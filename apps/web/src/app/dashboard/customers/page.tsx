@@ -1,5 +1,5 @@
 'use client';
-
+import { useRouter } from 'next/navigation';
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
@@ -44,6 +44,7 @@ interface Customer {
 }
 
 export default function CustomersPage() {
+  const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -322,13 +323,12 @@ export default function CustomersPage() {
                           </button>
                         </td>
                         <td className="py-4 px-2 text-right space-x-1">
-                          <button 
-                            onClick={() => handleLoadTimeline(c.id)}
-                            className="bg-white hover:bg-slate-100 text-slate-500 border border-slate-200 text-[10px] font-bold p-1.5 rounded-lg transition-all"
-                            title="View Activity Timeline"
-                          >
-                            <Clock className="h-3.5 w-3.5" />
-                          </button>
+                          <button
+  onClick={() => router.push(`/dashboard/customers/${c.id}`)}
+  className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all"
+>
+  View
+</button>
                           <button 
                             onClick={() => { setActiveCustId(c.id); setActivePanel('contacts'); }}
                             className="bg-white hover:bg-slate-100 text-slate-500 border border-slate-200 text-[10px] font-bold p-1.5 rounded-lg transition-all"
